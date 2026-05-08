@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crypto · Opportunité Live</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080808;--bg2:#111;--bg3:#1a1a1a;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#eee;--text2:#777;--text3:#444;
+  --green:#22c55e;--gdim:rgba(34,197,94,0.1);
+  --red:#ef4444;--rdim:rgba(239,68,68,0.08);
+  --amber:#f59e0b;
+}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column}
+.topbar{width:100%;border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:50px;flex-shrink:0}
+.tl{display:flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;color:var(--text2)}
+.live-badge{display:flex;align-items:center;gap:6px;background:var(--gdim);border:.5px solid rgba(34,197,94,.25);border-radius:100px;padding:3px 10px;font-size:11px;color:var(--green)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.8s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+#clock{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3)}
+.main{flex:1;display:flex;flex-direction:column;align-items:center;width:100%;padding:3rem 1.5rem 4rem;max-width:800px;margin:0 auto}
+.idle-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center;gap:2.5rem;width:100%}
+.idle-title{font-size:clamp(40px,7vw,64px);font-weight:300;letter-spacing:-.03em;line-height:1.05;color:var(--text)}
+.idle-title em{color:var(--green);font-style:normal}
+.idle-sub{font-size:14px;color:var(--text2);line-height:1.9;max-width:360px}
+.scan-btn{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.1em;padding:14px 40px;background:var(--text);color:var(--bg);border:none;border-radius:3px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.scan-btn:hover{opacity:.85;transform:translateY(-1px)}
+.scan-btn:active{transform:none}
+.scan-btn:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.loading-screen{display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:2rem}
+.ring{width:36px;height:36px;border:1.5px solid var(--border2);border-top-color:var(--text);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.log-lines{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text3);text-align:left;min-width:320px;display:flex;flex-direction:column;gap:8px}
+.log-line{animation:fadeUp .3s ease forwards;opacity:0}
+@keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.log-ok{color:var(--green)}.log-act{color:var(--text2)}.log-warn{color:var(--amber)}
+.result-screen{display:none;width:100%}
+.res-header{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:2rem}
+.opp-badge{display:inline-flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--green);background:var(--gdim);border:.5px solid rgba(34,197,94,.22);padding:4px 12px;border-radius:100px;margin-bottom:1rem}
+.coin-name{font-size:clamp(32px,6vw,52px);font-weight:300;letter-spacing:-.02em;line-height:1}
+.coin-meta{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:.05em;margin-top:6px}
+.rescan-btn{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);background:none;border:.5px solid var(--border);padding:8px 16px;border-radius:3px;cursor:pointer;letter-spacing:.06em;transition:all .15s;white-space:nowrap;align-self:flex-start}
+.rescan-btn:hover{border-color:var(--border2);color:var(--text2)}
+.metrics{display:flex;border:.5px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:1.5rem;flex-wrap:wrap}
+.mcell{flex:1 1 80px;padding:14px 18px;border-right:.5px solid var(--border);border-bottom:.5px solid var(--border);display:flex;flex-direction:column;gap:3px}
+.mcell:last-child{border-right:none}
+.mlbl{font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.mval{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:500;color:var(--text)}
+.mval.up{color:var(--green)}.mval.dn{color:var(--red)}.mval.warn{color:var(--amber)}
+.why-block{background:var(--bg2);border:.5px solid var(--border);border-radius:6px;padding:1.5rem 1.75rem;margin-bottom:1.5rem}
+.sec-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:.9rem}
+.why-text{font-size:16px;line-height:1.85;color:#bbb;font-weight:300}
+.signals{display:flex;flex-wrap:wrap;gap:7px;margin-top:1.2rem}
+.spill{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 11px;border:.5px solid var(--border2);border-radius:100px;color:var(--text2);background:var(--bg3)}
+.spill.strong{border-color:rgba(34,197,94,.28);color:var(--green);background:var(--gdim)}
+.chart-block{border:.5px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:1.5rem}
+.chart-hdr{padding:12px 1.5rem;border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.chart-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)}
+.chart-price{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text2)}
+.chart-body{padding:1rem 1rem .5rem;background:var(--bg2);position:relative;height:200px}
+.bot{display:flex;align-items:center;gap:2rem;flex-wrap:wrap}
+.conf-row{display:flex;align-items:center;gap:11px}
+.conf-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:.08em}
+.conf-track{width:130px;height:3px;background:var(--border2);border-radius:2px;overflow:hidden}
+.conf-fill{height:100%;background:var(--green);border-radius:2px;width:0;transition:width 1.2s cubic-bezier(.16,1,.3,1)}
+.conf-pct{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--green)}
+.sbadge{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.04em}
+.sbadge span{color:var(--text2)}
+.error-screen{display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:1.2rem;text-align:center}
+.err-title{font-size:20px;color:var(--red);font-weight:300}
+.err-msg{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text3);max-width:500px;line-height:1.7;white-space:pre-wrap}
+.retry-btn{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:10px 24px;border:.5px solid var(--border2);background:none;color:var(--text2);border-radius:3px;cursor:pointer;letter-spacing:.07em;margin-top:.5rem;transition:all .15s}
+.retry-btn:hover{border-color:var(--text3);color:var(--text)}
+footer{width:100%;border-top:.5px solid var(--border);padding:.9rem 2rem;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);text-align:center;letter-spacing:.05em;flex-shrink:0}
+@media(max-width:600px){.main{padding:2rem 1rem 3rem}.topbar{padding:0 1rem}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tl">
+    <div class="live-badge"><div class="dot"></div>LIVE</div>
+    <span>Crypto Scanner · Binance</span>
+  </div>
+  <span id="clock"></span>
+</div>
+
+<div class="main">
+  <div class="idle-screen" id="sIdle">
+    <div class="idle-title">Trouve<br>l'opportunité<br><em>maintenant.</em></div>
+    <div class="idle-sub">Données Binance temps réel.<br>RSI · Momentum · Volume spike · Dip detector.<br>Un seul signal. Zéro bruit.</div>
+    <button class="scan-btn" id="mainBtn" onclick="runScan()">Lancer le scan →</button>
+  </div>
+
+  <div class="loading-screen" id="sLoading">
+    <div class="ring"></div>
+    <div class="log-lines" id="logEl"></div>
+  </div>
+
+  <div class="result-screen" id="sResult"></div>
+
+  <div class="error-screen" id="sError">
+    <div class="err-title">Échec</div>
+    <div class="err-msg" id="errEl"></div>
+    <button class="retry-btn" onclick="runScan()">↻ Réessayer</button>
+  </div>
+</div>
+
+<footer>⚠ Usage éducatif uniquement · Pas de conseil financier · DYOR</footer>
+
+<script>
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-CA');},1000);
+
+let chartInst=null;
+
+function show(id){
+  ['sIdle','sLoading','sResult','sError'].forEach(s=>{document.getElementById(s).style.display='none';});
+  const t=document.getElementById(id);
+  t.style.display=(id==='sResult')?'block':'flex';
+}
+
+function log(txt,type='act'){
+  const d=document.createElement('div');
+  d.className='log-line log-'+type;
+  d.textContent=(type==='ok'?'✓ ':type==='warn'?'⚠ ':'› ')+txt;
+  document.getElementById('logEl').appendChild(d);
+}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+// ── BINANCE API — aucun CORS, aucune clé
+const PAIRS=[
+  'BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT',
+  'ADAUSDT','AVAXUSDT','DOGEUSDT','DOTUSDT','LINKUSDT',
+  'MATICUSDT','LTCUSDT','ATOMUSDT','NEARUSDT','UNIUSDT',
+  'AAVEUSDT','FTMUSDT','SANDUSDT','MANAUSDT','AXSUSDT',
+  'ALGOUSDT','ICPUSDT','FILUSDT','VETUSDT','HBARUSDT',
+  'EGLDUSDT','XTZUSDT','THETAUSDT','GALAUSDT','INJUSDT',
+  'APTUSDT','ARBUSDT','OPUSDT','SUIUSDT','SEIUSDT',
+];
+
+async function binanceFetch(url){
+  const r=await fetch(url,{signal:AbortSignal.timeout(10000)});
+  if(!r.ok) throw new Error(`Binance HTTP ${r.status} — ${url}`);
+  return r.json();
+}
+
+async function getTickers(){
+  const syms=JSON.stringify(PAIRS);
+  return binanceFetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(syms)}`);
+}
+
+async function getKlines(sym,interval,limit){
+  try{
+    const raw=await binanceFetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=${limit}`);
+    return raw.map(k=>({time:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]}));
+  }catch{return [];}
+}
+
+// ── RSI
+function rsi(closes,p=14){
+  if(closes.length<p+1) return null;
+  const s=closes.slice(-p-1);
+  let g=0,l=0;
+  for(let i=1;i<s.length;i++){const d=s[i]-s[i-1];d>0?g+=d:l-=d;}
+  return l===0?100:100-(100/(1+(g/l)));
+}
+
+// ── SCORE ENGINE
+function score(tick,d1,h1){
+  let pts=0;
+  const strong=[],normal=[];
+
+  const price=+tick.lastPrice;
+  const c24=+tick.priceChangePercent;
+  const hi24=+tick.highPrice;
+  const lo24=+tick.lowPrice;
+  const vol24=+tick.quoteVolume;
+
+  // 1h change depuis klines
+  let c1h=0;
+  if(h1.length>=2){const a=h1[h1.length-1].c,b=h1[h1.length-2].c;c1h=((a-b)/b)*100;}
+
+  // 7j change
+  let c7d=0;
+  if(d1.length>=8){const a=d1[d1.length-1].c,b=d1[d1.length-8]?.c||a;c7d=((a-b)/b)*100;}
+
+  // RSI 14j
+  const r14=rsi(d1.map(k=>k.c),14);
+
+  // Volume ratio vs moy 7j
+  const avgVol7=d1.length>=7?d1.slice(-7).reduce((s,k)=>s+k.v,0)/7:0;
+  const todayVol=d1.length?d1[d1.length-1].v:0;
+  const volRatio=avgVol7>0?todayVol/avgVol7:0;
+
+  // Distance depuis plancher 24h
+  const fromLo=lo24>0?((price-lo24)/lo24)*100:999;
+
+  // ── SIGNAL 1: Dip + rebond momentum (signal le plus fort)
+  if(c24<=-6 && c1h>=0.5){pts+=45;strong.push(`Dip ${c24.toFixed(1)}% + rebond +${c1h.toFixed(2)}%`);}
+  else if(c24<=-4 && c1h>=0.2){pts+=28;strong.push(`Correction + début reprise`);}
+  else if(c24<=-8){pts+=18;normal.push(`Fort dip ${c24.toFixed(1)}% 24h`);}
+  else if(c24<=-4){pts+=10;normal.push(`Recul ${c24.toFixed(1)}% 24h`);}
+
+  // ── SIGNAL 2: RSI survente
+  if(r14!==null){
+    if(r14<28){pts+=38;strong.push(`RSI survente extrême (${r14.toFixed(0)})`);}
+    else if(r14<35){pts+=24;strong.push(`RSI survente (${r14.toFixed(0)})`);}
+    else if(r14<42){pts+=12;normal.push(`RSI bas (${r14.toFixed(0)})`);}
+  }
+
+  // ── SIGNAL 3: Correction semaine + stabilisation journée
+  if(c7d<=-15 && c24>-5 && c24<5){pts+=22;strong.push(`-${Math.abs(c7d).toFixed(0)}% 7j, plancher potentiel`);}
+  else if(c7d<=-10){pts+=10;normal.push(`-${Math.abs(c7d).toFixed(0)}% semaine`);}
+
+  // ── SIGNAL 4: Volume spike (l'argent revient)
+  if(volRatio>=2.5){pts+=28;strong.push(`Volume x${volRatio.toFixed(1)} vs moy. 7j`);}
+  else if(volRatio>=1.6){pts+=14;normal.push(`Volume +${((volRatio-1)*100).toFixed(0)}% vs moy.`);}
+
+  // ── SIGNAL 5: Plancher 24h + retournement
+  if(fromLo<=1.5 && c1h>0){pts+=20;strong.push(`Rebond depuis plancher 24h`);}
+  else if(fromLo<=3){pts+=8;normal.push(`Proche plancher 24h`);}
+
+  // ── SIGNAL 6: Chandelier haussier (close > open et en hausse)
+  if(d1.length>=1){
+    const last=d1[d1.length-1];
+    if(last.c>last.o && c1h>0.3) {pts+=8;normal.push(`Chandelier haussier`);}
+  }
+
+  // ── MALUS
+  if(c1h<-2) pts-=20;
+  if(c7d<-50) pts-=30;
+  if(c24>8) pts-=25;
+  if(vol24<500000) pts-=40;
+
+  const sym=tick.symbol.replace('USDT','');
+  return {pts,strong,normal,r14,c1h,c24,c7d,price,hi24,lo24,vol24,volRatio,fromLo,sym,tick,d1};
+}
+
+// ── IA
+async function ai(d){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:1000,
+      messages:[{role:'user',content:
+`Tu es un analyste crypto senior. Explique en 2-3 phrases FACTUELLES et PRÉCISES pourquoi ${d.sym}/USDT est une opportunité potentielle d'achat EN CE MOMENT.
+
+Données Binance temps réel:
+- Prix: $${d.price.toLocaleString('en-US',{maximumFractionDigits:4})}
+- 1h: ${d.c1h>=0?'+':''}${d.c1h.toFixed(2)}%
+- 24h: ${d.c24>=0?'+':''}${d.c24.toFixed(2)}%
+- 7j: ${d.c7d>=0?'+':''}${d.c7d.toFixed(2)}%
+- Volume 24h: $${(d.vol24/1e6).toFixed(0)}M
+- Volume ratio vs moy 7j: x${d.volRatio.toFixed(2)}
+- Distance plancher 24h: +${d.fromLo.toFixed(1)}%
+${d.r14!==null?`- RSI 14j: ${d.r14.toFixed(1)}`:''}
+- Signaux forts: ${d.strong.join(', ')||'aucun'}
+
+Commence directement. Sois factuel. Max 65 mots.`
+      }]
+    })
+  });
+  if(!r.ok) throw new Error(`Anthropic ${r.status}`);
+  return (await r.json()).content[0].text.trim();
+}
+
+// ── FORMAT
+const fp=p=>{
+  if(!p) return 'N/A';
+  if(p>=10000) return '$'+p.toLocaleString('en-US',{maximumFractionDigits:0});
+  if(p>=1) return '$'+p.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:3});
+  return '$'+p.toFixed(5);
+};
+const pct=v=>(v>=0?'+':'')+v.toFixed(2)+'%';
+const fm=n=>n>=1e9?'$'+(n/1e9).toFixed(2)+'B':n>=1e6?'$'+(n/1e6).toFixed(0)+'M':'$'+n.toLocaleString();
+
+// ── CHART
+function drawChart(d1,sym){
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  const c=document.getElementById('priceCanvas');
+  if(!c||d1.length<2) return;
+  const prices=d1.map(k=>k.c);
+  const isDown=prices[prices.length-1]<prices[0];
+  const lc=isDown?'#ef4444':'#22c55e',fc=isDown?'rgba(239,68,68,.05)':'rgba(34,197,94,.05)';
+  chartInst=new Chart(c,{
+    type:'line',
+    data:{
+      labels:d1.map(k=>{const d=new Date(k.time);return d.toLocaleDateString('fr-CA',{day:'numeric',month:'short'});}),
+      datasets:[{data:prices,borderColor:lc,backgroundColor:fc,borderWidth:1.5,fill:true,tension:0.4,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:lc,pointHoverBorderColor:'#080808',pointHoverBorderWidth:2}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:700,easing:'easeOutQuart'},
+      interaction:{intersect:false,mode:'index'},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1a1a',borderColor:'rgba(255,255,255,.1)',borderWidth:.5,titleColor:'#555',bodyColor:'#eee',titleFont:{family:'IBM Plex Mono',size:10},bodyFont:{family:'IBM Plex Mono',size:12},callbacks:{label:ctx=>' $'+ctx.parsed.y.toLocaleString('en-US',{maximumFractionDigits:4})}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.03)'},border:{color:'rgba(255,255,255,.07)'},ticks:{color:'#3a3a3a',font:{family:'IBM Plex Mono',size:10},maxTicksLimit:7}},
+        y:{position:'right',grid:{color:'rgba(255,255,255,.03)'},border:{color:'rgba(255,255,255,.07)'},ticks:{color:'#3a3a3a',font:{family:'IBM Plex Mono',size:10},callback:v=>v>=10000?'$'+(v/1000).toFixed(0)+'k':v>=1?'$'+v.toLocaleString('en-US',{maximumFractionDigits:2}):'$'+v.toFixed(4)}}
+      }
+    }
+  });
+}
+
+// ── SCAN
+async function runScan(){
+  const btn=document.getElementById('mainBtn');
+  if(btn) btn.disabled=true;
+  document.getElementById('logEl').innerHTML='';
+  show('sLoading');
+
+  try{
+    log('Connexion à Binance (API publique)...');
+    await sleep(150);
+    const tickers=await getTickers();
+    log(`${tickers.length} paires chargées en temps réel`,'ok');
+    await sleep(100);
+
+    log('Téléchargement des chandelles (1j + 1h)...');
+    // Parallèle par batch de 6
+    const results=[];
+    for(let i=0;i<tickers.length;i+=6){
+      const chunk=tickers.slice(i,i+6);
+      const batch=await Promise.all(chunk.map(async t=>{
+        const [d1,h1]=await Promise.all([getKlines(t.symbol,'1d',21),getKlines(t.symbol,'1h',26)]);
+        return {t,d1,h1};
+      }));
+      results.push(...batch);
+      await sleep(60);
+    }
+    log(`Klines récupérées pour ${results.length} paires`,'ok');
+
+    log('Calcul RSI · Momentum · Volume · Signaux...');
+    await sleep(200);
+
+    const scored=results
+      .map(({t,d1,h1})=>score(t,d1,h1))
+      .filter(x=>x.pts>15)
+      .sort((a,b)=>b.pts-a.pts);
+
+    if(!scored.length){
+      throw new Error('Aucune opportunité claire détectée.\n\nLe marché est en tendance homogène ou trop calme.\nRéessaie en période de volatilité.');
+    }
+
+    const best=scored[0];
+    log(`Meilleure opportunité: ${best.sym} (${best.pts} pts · ${scored.length} candidats)`,'ok');
+
+    log('Analyse IA des signaux...');
+    const why=await ai(best);
+    log('Analyse complète','ok');
+
+    const conf=Math.min(93,30+best.pts);
+
+    document.getElementById('sResult').innerHTML=`
+      <div class="res-header">
+        <div>
+          <div class="opp-badge"><div class="dot"></div>Opportunité détectée</div>
+          <div class="coin-name">${best.sym}</div>
+          <div class="coin-meta">${best.sym}/USDT · Binance · ${new Date().toLocaleTimeString('fr-CA')}</div>
+        </div>
+        <button class="rescan-btn" onclick="runScan()">↻ Rescanner</button>
+      </div>
+      <div class="metrics">
+        <div class="mcell"><div class="mlbl">Prix</div><div class="mval">${fp(best.price)}</div></div>
+        <div class="mcell"><div class="mlbl">1h</div><div class="mval ${best.c1h>=0?'up':'dn'}">${pct(best.c1h)}</div></div>
+        <div class="mcell"><div class="mlbl">24h</div><div class="mval ${best.c24>=0?'up':'dn'}">${pct(best.c24)}</div></div>
+        <div class="mcell"><div class="mlbl">7j</div><div class="mval ${best.c7d>=0?'up':'dn'}">${pct(best.c7d)}</div></div>
+        <div class="mcell"><div class="mlbl">Vol 24h</div><div class="mval">${fm(best.vol24)}</div></div>
+        ${best.r14!==null?`<div class="mcell"><div class="mlbl">RSI 14j</div><div class="mval ${best.r14<35?'up':'warn'}">${best.r14.toFixed(0)}</div></div>`:''}
+      </div>
+      <div class="why-block">
+        <div class="sec-lbl">Pourquoi maintenant</div>
+        <div class="why-text">${why}</div>
+        <div class="signals">
+          ${best.strong.map(s=>`<span class="spill strong">${s}</span>`).join('')}
+          ${best.normal.map(s=>`<span class="spill">${s}</span>`).join('')}
+        </div>
+      </div>
+      <div class="chart-block">
+        <div class="chart-hdr">
+          <div class="chart-lbl">${best.sym}/USDT · 14 jours · Binance</div>
+          <div class="chart-price">${fp(best.price)}</div>
+        </div>
+        <div class="chart-body">
+          <canvas id="priceCanvas" role="img" aria-label="${best.sym} prix 14 jours"></canvas>
+        </div>
+      </div>
+      <div class="bot">
+        <div class="conf-row">
+          <span class="conf-lbl">CONFIANCE</span>
+          <div class="conf-track"><div class="conf-fill" id="cFill"></div></div>
+          <span class="conf-pct">${conf}%</span>
+        </div>
+        <div class="sbadge">Score: <span>${best.pts} pts</span></div>
+        <div class="sbadge">Candidats: <span>${scored.length}</span></div>
+      </div>
+    `;
+
+    show('sResult');
+    setTimeout(()=>{
+      const f=document.getElementById('cFill');if(f) f.style.width=conf+'%';
+      if(best.d1&&best.d1.length>2) drawChart(best.d1,best.sym);
+    },150);
+
+  }catch(err){
+    show('sError');
+    document.getElementById('errEl').textContent=err.message;
+    console.error(err);
+  }
+  if(btn) btn.disabled=false;
+}
+
+show('sIdle');
+</script>
+</body>
+</html>
